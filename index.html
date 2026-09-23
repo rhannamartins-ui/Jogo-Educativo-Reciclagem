@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Recicla Cidade - Jogo Educativo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #1a2a3a;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            max-width: 1000px;
+            max-height: 700px;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 70%, #8FBC8F 100%);
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* TELA DE MENU E PAINÉIS */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            color: #2c3e50;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .screen.hidden {
+            display: none;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            color: #2e7d32;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            font-size: 2rem;
+            color: #1b5e20;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(to bottom, #4CAF50, #388E3C);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+            min-width: 200px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+            background: linear-gradient(to bottom, #66BB6A, #43A047);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(to bottom, #0288D1, #01579B);
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(to bottom, #03A9F4, #0288D1);
+        }
+
+        .panel-content {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 70vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        /* GAMEPLAY HUD */
+        #hud {
+            height: 60px;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 5;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .hud-item {
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ÁREA DO JOGO */
+        #play-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* LIXEIRAS */
+        #bins-container {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 10px;
+            z-index: 2;
+        }
+
+        .bin {
+            width: 16%;
+            max-width: 110px;
+            height: 140px;
+            border-radius: 10px 10px 5px 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 5px;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 6px 10px rgba(0,0,0,0.3);
+            border: 3px solid rgba(255,255,255,0.4);
+            transition: transform 0.2s;
+        }
+
+        .bin.drag-over {
+            transform: scale(1.1);
+        }
+
+        .bin-papel { background: #1976D2; }
+        .bin-plastico { background: #D32F2F; }
+        .bin-vidro { background: #388E3C; }
+        .bin-metal { background: #FBC02D; color: #333; }
+        .bin-organico { background: #795548; }
+
+        .bin-icon {
+            font-size: 2rem;
+        }
+
+        .bin-label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        /* ITENS DE LIXO */
+        .trash-item {
+            width: 65px;
+            height: 65px;
+            position: absolute;
+            cursor: grab;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5rem;
+            background: rgba(255,255,255,0.8);
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+            z-index: 3;
+            touch-action: none;
+        }
+
+        .trash-item:active {
+            cursor: grabbing;
+            transform: scale(1.15);
+        }
+
+        /* MODAIS DE FEEDBACK */
+        .toast {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 30px;
+            background: #333;
+            color: white;
+            font-weight: bold;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .toast.success { background: #2E7D32; }
+        .toast.error { background: #C62828; }
+
+        /* CONFIGURAÇÕES CONTROLES */
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+            font-size: 1.1rem;
+        }
+
+        .setting-row input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+
+        .setting-row input[type="range"] {
+            width: 120px;
+        }
+
+        /* CONQUISTAS */
+        .achievement-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .achievement-card {
+            display: flex;
+            align-items: center;
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 8px;
+            gap: 15px;
+            opacity: 0.5;
+        }
+
+        .achievement-card.unlocked {
+            opacity: 1;
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+        }
+
+        .achievement-icon {
+            font-size: 2rem;
+        }
+
+        /* POPUP DE CONQUISTA */
+        #achievement-popup {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: #FFF9C4;
+            border: 2px solid #FBC02D;
+            color: #333;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 25;
+            transform: translateY(150%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #achievement-popup.show {
+            transform: translateY(0);
+        }
+
+        /* CENÁRIOS DE AMBIENTE */
+        .bg-praca { background: linear-gradient(to bottom, #87CEEB 60%, #81C784 60%); }
+        .bg-rua { background: linear-gradient(to bottom, #90CAF9 60%, #78909C 60%); }
+        .bg-parque { background: linear-gradient(to bottom, #A5D6A7 50%, #388E3C 50%); }
+        .bg-rio { background: linear-gradient(to bottom, #80DEEA 50%, #00838F 50%); }
+        .bg-cidade { background: linear-gradient(to bottom, #FFE082 60%, #616161 60%); }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- MENU PRINCIPAL -->
+        <div id="screen-menu" class="screen">
+            <h1>🌱 Recicla Cidade</h1>
+            <p style="margin-bottom: 20px; font-size: 1.1rem; color: #555;">Ajude a limpar o planeta descartando o lixo corretamente!</p>
+            <button class="btn" onclick="game.startLevel(1)">JOGAR</button>
+            <button class="btn btn-secondary" onclick="game.showScreen('screen-how-to')">COMO JOGAR</button>
+            <button class="btn btn-secondary" onclick="game.showScreen('screen-achievements')">CONQUISTAS</button>
+            <button class="btn btn-secondary" onclick="game.showScreen('screen-settings')">CONFIGURAÇÕES</button>
+            <button class="btn btn-secondary" onclick="game.showScreen('screen-credits')">CRÉDITOS</button>
+        </div>
+
+        <!-- TELA COMO JOGAR -->
+        <div id="screen-how-to" class="screen hidden">
+            <h2>Como Jogar 📖</h2>
+            <div class="panel-content">
+                <p><strong>1. Arraste e Solte:</strong> Arraste cada item de lixo espalhado pela tela até a lixeira correspondente.</p><br>
+                <p><strong>2. Cores das Lixeiras:</strong></p>
+                <ul>
+                    <li><span style="color:#1976D2; font-weight:bold;">AZUL:</span> Papel (Jornais, caixas, folhas)</li>
+                    <li><span style="color:#D32F2F; font-weight:bold;">VERMELHO:</span> Plástico (Garrafas, sacolas)</li>
+                    <li><span style="color:#388E3C; font-weight:bold;">VERDADE:</span> Vidro (Garrafas, potes de vidro)</li>
+                    <li><span style="color:#FBC02D; font-weight:bold;">AMARELO:</span> Metal (Latinhas, tampinhas)</li>
+                    <li><span style="color:#795548; font-weight:bold;">MARROM:</span> Orgânico (Cascas, restos de comida)</li>
+                </ul><br>
+                <p><strong>3. Pontuação:</strong> Ganhe pontos a cada acerto e limpe a cidade antes que o tempo acabe!</p>
+            </div>
+            <button class="btn" onclick="game.showScreen('screen-menu')">VOLTAR</button>
+        </div>
+
+        <!-- TELA CONFIGURAÇÕES -->
+        <div id="screen-settings" class="screen hidden">
+            <h2>Configurações ⚙️</h2>
+            <div class="panel-content">
+                <div class="setting-row">
+                    <label for="chk-music">Música:</label>
+                    <input type="checkbox" id="chk-music" checked onchange="audioManager.toggleMusic(this.checked)">
+                </div>
+                <div class="setting-row">
+                    <label for="chk-sfx">Efeitos Sonoros:</label>
+                    <input type="checkbox" id="chk-sfx" checked onchange="audioManager.toggleSFX(this.checked)">
+                </div>
+                <div class="setting-row">
+                    <label for="vol-master">Volume:</label>
+                    <input type="range" id="vol-master" min="0" max="1" step="0.1" value="0.5" onchange="audioManager.setVolume(this.value)">
+                </div>
+            </div>
+            <button class="btn btn-secondary" onclick="game.resetProgress()" style="background:#d32f2f;">Reiniciar Progresso</button>
+            <button class="btn" onclick="game.showScreen('screen-menu')">VOLTAR</button>
+        </div>
+
+        <!-- TELA CONQUISTAS -->
+        <div id="screen-achievements" class="screen hidden">
+            <h2>Conquistas 🏆</h2>
+            <div class="panel-content achievement-list" id="achievements-list">
+                <!-- Preenchido via JS -->
+            </div>
+            <button class="btn" onclick="game.showScreen('screen-menu')">VOLTAR</button>
+        </div>
+
+        <!-- TELA CRÉDITOS -->
+        <div id="screen-credits" class="screen hidden">
+            <h2>Créditos 🎨</h2>
+            <div class="panel-content">
+                <p><strong>Desenvolvimento:</strong> Jogo Educativo HTML5</p><br>
+                <p><strong>Design & Conceito:</strong> Conscientização Ambiental e Reciclagem</p><br>
+                <p><strong>Áudio:</strong> Síntese de Som via Web Audio API Nativa</p><br>
+                <p>Feito para ensinar sustentabilidade de maneira divertida e acessível!</p>
+            </div>
+            <button class="btn" onclick="game.showScreen('screen-menu')">VOLTAR</button>
+        </div>
+
+        <!-- TELA FIM DE FASE / VITÓRIA -->
+        <div id="screen-level-complete" class="screen hidden">
+            <h2 id="win-title">Fase Concluída! 🎉</h2>
+            <div class="panel-content" style="text-align: center;">
+                <p id="win-message" style="font-size: 1.2rem; margin-bottom: 15px;"></p>
+                <p>Pontuação da Fase: <span id="win-score" style="font-weight:bold; color:#2e7d32;">0</span></p>
+            </div>
+            <button class="btn" id="btn-next-level" onclick="game.nextLevel()">PRÓXIMA FASE</button>
+            <button class="btn btn-secondary" onclick="game.showScreen('screen-menu')">MENU PRINCIPAL</button>
+        </div>
+
+        <!-- HUD DO JOGO -->
+        <div id="hud">
+            <div class="hud-item">📍 <span id="hud-level">Fase 1: Praça</span></div>
+            <div class="hud-item">⭐ <span id="hud-score">0</span></div>
+            <div class="hud-item">⏱️ <span id="hud-timer">60s</span></div>
+            <button class="btn btn-secondary" style="padding: 5px 15px; min-width: auto; font-size: 0.9rem;" onclick="game.showScreen('screen-menu')">Menu</button>
+        </div>
+
+        <!-- ÁREA DE JOGO -->
+        <div id="play-area" class="bg-praca">
+            <div id="bins-container">
+                <div class="bin bin-papel" data-type="papel">
+                    <div class="bin-icon">📄</div>
+                    <div class="bin-label">Papel</div>
+                </div>
+                <div class="bin bin-plastico" data-type="plastico">
+                    <div class="bin-icon">🥤</div>
+                    <div class="bin-label">Plástico</div>
+                </div>
+                <div class="bin bin-vidro" data-type="vidro">
+                    <div class="bin-icon">🍾</div>
+                    <div class="bin-label">Vidro</div>
+                </div>
+                <div class="bin bin-metal" data-type="metal">
+                    <div class="bin-icon">🥫</div>
+                    <div class="bin-label">Metal</div>
+                </div>
+                <div class="bin bin-organico" data-type="organico">
+                    <div class="bin-icon">🍎</div>
+                    <div class="bin-label">Orgânico</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOAST / AVISOS EDUCATIVOS -->
+        <div id="toast" class="toast"></div>
+
+        <!-- POPUP DE CONQUISTAS -->
+        <div id="achievement-popup">
+            <div style="font-size: 2rem;">🏆</div>
+            <div>
+                <div style="font-weight: bold; font-size: 0.9rem; color: #856404;">Conquista Desbloqueada!</div>
+                <div id="achievement-popup-title" style="font-weight: bold; font-size: 1.1rem;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* === SISTEMA DE ÁUDIO WEB AUDIO API (Sem dependências externas) === */
+        class SoundSystem {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.musicEnabled = true;
+                this.sfxEnabled = true;
+                this.volume = 0.5;
+                this.isPlayingMusic = false;
+                this.musicInterval = null;
+            }
+
+            init() {
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playTone(freq, type, duration, delay = 0) {
+                if (!this.sfxEnabled) return;
+                setTimeout(() => {
+                    try {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = type;
+                        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                        gain.gain.setValueAtTime(this.volume * 0.3, this.ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start();
+                        osc.stop(this.ctx.currentTime + duration);
+                    } catch(e){}
+                }, delay);
+            }
+
+            playCorrect() {
+                this.init();
+                this.playTone(523.25, 'sine', 0.1, 0); // C5
+                this.playTone(659.25, 'sine', 0.15, 80); // E5
+                this.playTone(783.99, 'sine', 0.2, 160); // G5
+            }
+
+            playWrong() {
+                this.init();
+                this.playTone(220, 'sawtooth', 0.15, 0);
+                this.playTone(180, 'sawtooth', 0.25, 100);
+            }
+
+            playPickup() {
+                this.init();
+                this.playTone(400, 'sine', 0.05, 0);
+            }
+
+            playAchievement() {
+                this.init();
+                [440, 554.37, 659.25, 880].forEach((freq, idx) => {
+                    this.playTone(freq, 'triangle', 0.2, idx * 100);
+                });
+            }
+
+            startMusic() {
+                if (!this.musicEnabled || this.isPlayingMusic) return;
+                this.isPlayingMusic = true;
+                let step = 0;
+                const notes = [261.63, 329.63, 392.00, 329.63, 293.66, 349.23, 392.00, 349.23];
+                this.musicInterval = setInterval(() => {
+                    if (!this.musicEnabled) return;
+                    try {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(notes[step % notes.length], this.ctx.currentTime);
+                        gain.gain.setValueAtTime(this.volume * 0.05, this.ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start();
+                        osc.stop(this.ctx.currentTime + 0.4);
+                        step++;
+                    } catch(e){}
+                }, 500);
+            }
+
+            stopMusic() {
+                this.isPlayingMusic = false;
+                if (this.musicInterval) clearInterval(this.musicInterval);
+            }
+
+            toggleMusic(enable) {
+                this.musicEnabled = enable;
+                if (enable) this.startMusic();
+                else this.stopMusic();
+            }
+
+            toggleSFX(enable) {
+                this.sfxEnabled = enable;
+            }
+
+            setVolume(val) {
+                this.volume = parseFloat(val);
+            }
+        }
+
+        const audioManager = new SoundSystem();
+
+        /* === DADOS DO JOGO === */
+        const TRASH_TYPES = {
+            PAPEL: { type: 'papel', name: 'Papel', color: 'AZUL' },
+            PLASTICO: { type: 'plastico', name: 'Plástico', color: 'VERMELHO' },
+            VIDRO: { type: 'vidro', name: 'Vidro', color: 'VERDE' },
+            METAL: { type: 'metal', name: 'Metal', color: 'AMARELO' },
+            ORGANICO: { type: 'organico', name: 'Orgânico', color: 'MARROM' }
+        };
+
+        const TRASH_ITEMS = [
+            { icon: '📰', name: 'Jornal Velho', type: TRASH_TYPES.PAPEL },
+            { icon: '📦', name: 'Caixa de Papelão', type: TRASH_TYPES.PAPEL },
+            { icon: '📄', name: 'Papel Rascunho', type: TRASH_TYPES.PAPEL },
+            { icon: '🥤', name: 'Copo Plástico', type: TRASH_TYPES.PLASTICO },
+            { icon: '🛍️', name: 'Sacola Plástica', type: TRASH_TYPES.PLASTICO },
+            { icon: '🍾', name: 'Garrafa de Vidro', type: TRASH_TYPES.VIDRO },
+            { icon: '🫙', name: 'Pote de Vidro', type: TRASH_TYPES.VIDRO },
+            { icon: '🍷', name: 'Garrafa de Vidro', type: TRASH_TYPES.VIDRO },
+            { icon: '🥫', name: 'Lata de Conserva', type: TRASH_TYPES.METAL },
+            { icon: '🥤', name: 'Lata de Refrigerante', type: TRASH_TYPES.PLASTICO },
+            { icon: '🍎', name: 'Resto de Maçã', type: TRASH_TYPES.ORGANICO },
+            { icon: '🍌', name: 'Casca de Banana', type: TRASH_TYPES.ORGANICO }
+        ];
+
+        const POSITIVE_PHRASES = [
+            "Boa! Você ajudou a deixar a cidade mais limpa!",
+            "Mandou bem! Esse material foi separado corretamente!",
+            "Cada atitude conta para cuidar do planeta!",
+            "Excelente! Continue ajudando o meio ambiente!",
+            "Incrível! Menos um lixo poluindo a natureza!"
+        ];
+
+        const LEVELS = [
+            { id: 1, name: 'Praça', bg: 'bg-praca', itemsCount: 5, time: 45, allowedTypes: ['papel', 'plastico'] },
+            { id: 2, name: 'Rua', bg: 'bg-rua', itemsCount: 7, time: 50, allowedTypes: ['papel', 'plastico', 'metal'] },
+            { id: 3, name: 'Parque', bg: 'bg-parque', itemsCount: 9, time: 55, allowedTypes: ['papel', 'plastico', 'metal', 'vidro'] },
+            { id: 4, name: 'Rio', bg: 'bg-rio', itemsCount: 10, time: 60, allowedTypes: ['papel', 'plastico', 'metal', 'vidro', 'organico'] },
+            { id: 5, name: 'Cidade Limpa', bg: 'bg-cidade', itemsCount: 12, time: 60, allowedTypes: ['papel', 'plastico', 'metal', 'vidro', 'organico'] }
+        ];
+
+        const ACHIEVEMENTS_DEF = [
+            { id: 'first_recycle', title: 'Primeira Reciclagem', desc: 'Recicle seu primeiro item corretamente.', icon: '🌱' },
+            { id: 'level_1', title: 'Praça Limpa', desc: 'Conclua a Fase 1 com sucesso.', icon: '🏞️' },
+            { id: 'master', title: 'Mestre da Reciclagem', desc: 'Conclua todas as fases do jogo.', icon: '👑' },
+            { id: 'protector', title: 'Protetor do Planeta', desc: 'Alcance 500 pontos totais.', icon: '🌍' }
+        ];
+
+        /* === LÓGICA PRINCIPAL DO JOGO === */
+        class Game {
+            constructor() {
+                this.currentLevelIdx = 0;
+                this.score = 0;
+                this.totalScore = 0;
+                this.timer = 0;
+                this.timerInterval = null;
+                this.activeItems = 0;
+                this.achievements = JSON.parse(localStorage.getItem('recicla_achievements')) || {};
+                this.draggedElement = null;
+                this.touchOffset = { x: 0, y: 0 };
+            }
+
+            init() {
+                this.renderAchievements();
+                document.addEventListener('click', () => audioManager.startMusic(), { once: true });
+            }
+
+            showScreen(screenId) {
+                document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+                document.getElementById(screenId).classList.remove('hidden');
+                if (screenId !== 'screen-menu') {
+                    this.stopTimer();
+                }
+            }
+
+            startLevel(levelNum) {
+                this.currentLevelIdx = levelNum - 1;
+                const level = LEVELS[this.currentLevelIdx];
+                
+                this.score = 0;
+                this.timer = level.time;
+                this.activeItems = level.itemsCount;
+
+                // Atualizar HUD
+                document.getElementById('hud-level').innerText = `Fase ${level.id}: ${level.name}`;
+                document.getElementById('hud-score').innerText = this.totalScore;
+                document.getElementById('hud-timer').innerText = `${this.timer}s`;
+
+                // Configurar BG
+                const playArea = document.getElementById('play-area');
+                playArea.className = level.bg;
+
+                // Limpar itens antigos
+                document.querySelectorAll('.trash-item').forEach(el => el.remove());
+
+                // Esconder telas
+                document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+
+                // Gerar novos itens
+                this.spawnTrashItems(level);
+
+                // Iniciar Cronômetro
+                this.startTimer();
+            }
+
+            spawnTrashItems(level) {
+                const playArea = document.getElementById('play-area');
+                const availableItems = TRASH_ITEMS.filter(item => level.allowedTypes.includes(item.type.type));
+
+                for (let i = 0; i < level.itemsCount; i++) {
+                    const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+                    const el = document.createElement('div');
+                    el.className = 'trash-item';
+                    el.innerText = randomItem.icon;
+                    el.dataset.type = randomItem.type.type;
+                    el.dataset.typeName = randomItem.type.name;
+                    el.dataset.color = randomItem.type.color;
+                    el.dataset.name = randomItem.name;
+
+                    // Posicionamento aleatório seguro
+                    const posX = 5 + Math.random() * 80;
+                    const posY = 15 + Math.random() * 45;
+                    el.style.left = `${posX}%`;
+                    el.style.top = `${posY}%`;
+
+                    this.makeDraggable(el);
+                    playArea.appendChild(el);
+                }
+            }
+
+            makeDraggable(el) {
+                // Drag & Drop para Mouse
+                el.addEventListener('mousedown', (e) => {
+                    this.draggedElement = el;
+                    audioManager.playPickup();
+                    const rect = el.getBoundingClientRect();
+                    this.touchOffset.x = e.clientX - rect.left;
+                    this.touchOffset.y = e.clientY - rect.top;
+
+                    const onMouseMove = (moveEvent) => {
+                        if (!this.draggedElement) return;
+                        const containerRect = document.getElementById('play-area').getBoundingClientRect();
+                        let x = moveEvent.clientX - containerRect.left - this.touchOffset.x;
+                        let y = moveEvent.clientY - containerRect.top - this.touchOffset.y;
+                        el.style.left = `${x}px`;
+                        el.style.top = `${y}px`;
+                    };
+
+                    const onMouseUp = (upEvent) => {
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                        if (this.draggedElement) {
+                            this.checkDrop(upEvent.clientX, upEvent.clientY, el);
+                            this.draggedElement = null;
+                        }
+                    };
+
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                });
+
+                // Touch para Dispositivos Móveis
+                el.addEventListener('touchstart', (e) => {
+                    this.draggedElement = el;
+                    audioManager.playPickup();
+                    const touch = e.touches[0];
+                    const rect = el.getBoundingClientRect();
+                    this.touchOffset.x = touch.clientX - rect.left;
+                    this.touchOffset.y = touch.clientY - rect.top;
+
+                    const onTouchMove = (moveEvent) => {
+                        if (!this.draggedElement) return;
+                        const touchM = moveEvent.touches[0];
+                        const containerRect = document.getElementById('play-area').getBoundingClientRect();
+                        let x = touchM.clientX - containerRect.left - this.touchOffset.x;
+                        let y = touchM.clientY - containerRect.top - this.touchOffset.y;
+                        el.style.left = `${x}px`;
+                        el.style.top = `${y}px`;
+                    };
+
+                    const onTouchEnd = (endEvent) => {
+                        el.removeEventListener('touchmove', onTouchMove);
+                        el.removeEventListener('touchend', onTouchEnd);
+                        if (this.draggedElement) {
+                            const lastTouch = endEvent.changedTouches[0];
+                            this.checkDrop(lastTouch.clientX, lastTouch.clientY, el);
+                            this.draggedElement = null;
+                        }
+                    };
+
+                    el.addEventListener('touchmove', onTouchMove);
+                    el.addEventListener('touchend', onTouchEnd);
+                });
+            }
+
+            checkDrop(x, y, itemEl) {
+                const bins = document.querySelectorAll('.bin');
+                let dropped = false;
+
+                bins.forEach(bin => {
+                    const rect = bin.getBoundingClientRect();
+                    if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                        dropped = true;
+                        const binType = bin.dataset.type;
+                        const itemType = itemEl.dataset.type;
+
+                        if (binType === itemType) {
+                            // ACERTO
+                            audioManager.playCorrect();
+                            this.score += 10;
+                            this.totalScore += 10;
+                            document.getElementById('hud-score').innerText = this.totalScore;
+                            
+                            const phrase = POSITIVE_PHRASES[Math.floor(Math.random() * POSITIVE_PHRASES.length)];
+                            this.showToast(phrase, 'success');
+                            
+                            itemEl.remove();
+                            this.activeItems--;
+
+                            this.unlockAchievement('first_recycle');
+
+                            if (this.totalScore >= 500) {
+                                this.unlockAchievement('protector');
+                            }
+
+                            if (this.activeItems <= 0) {
+                                this.completeLevel();
+                            }
+                        } else {
+                            // ERRO
+                            audioManager.playWrong();
+                            const typeName = itemEl.dataset.typeName;
+                            const color = itemEl.dataset.color;
+                            this.showToast(`Quase! Esse objeto deve ser colocado na lixeira de ${typeName} (${color}).`, 'error');
+                        }
+                    }
+                });
+            }
+
+            showToast(msg, type) {
+                const toast = document.getElementById('toast');
+                toast.innerText = msg;
+                toast.className = `toast show ${type}`;
+                setTimeout(() => {
+                    toast.className = 'toast';
+                }, 3000);
+            }
+
+            startTimer() {
+                this.stopTimer();
+                this.timerInterval = setInterval(() => {
+                    this.timer--;
+                    document.getElementById('hud-timer').innerText = `${this.timer}s`;
+
+                    if (this.timer <= 0) {
+                        this.stopTimer();
+                        alert('O tempo acabou! Tente novamente.');
+                        this.startLevel(this.currentLevelIdx + 1);
+                    }
+                }, 1000);
+            }
+
+            stopTimer() {
+                if (this.timerInterval) clearInterval(this.timerInterval);
+            }
+
+            completeLevel() {
+                this.stopTimer();
+                const level = LEVELS[this.currentLevelIdx];
+                
+                if (level.id === 1) this.unlockAchievement('level_1');
+                if (level.id === LEVELS.length) this.unlockAchievement('master');
+
+                document.getElementById('win-title').innerText = `Fase ${level.id} Limpa! 🎉`;
+                document.getElementById('win-message').innerText = `Você concluiu a fase ${level.name} e ajudou o meio ambiente!`;
+                document.getElementById('win-score').innerText = this.score;
+
+                const nextBtn = document.getElementById('btn-next-level');
+                if (this.currentLevelIdx >= LEVELS.length - 1) {
+                    nextBtn.style.display = 'none';
+                } else {
+                    nextBtn.style.display = 'inline-block';
+                }
+
+                this.showScreen('screen-level-complete');
+            }
+
+            nextLevel() {
+                if (this.currentLevelIdx < LEVELS.length - 1) {
+                    this.startLevel(this.currentLevelIdx + 2);
+                }
+            }
+
+            unlockAchievement(id) {
+                if (!this.achievements[id]) {
+                    this.achievements[id] = true;
+                    localStorage.setItem('recicla_achievements', JSON.stringify(this.achievements));
+                    
+                    const ach = ACHIEVEMENTS_DEF.find(a => a.id === id);
+                    if (ach) {
+                        audioManager.playAchievement();
+                        const popup = document.getElementById('achievement-popup');
+                        document.getElementById('achievement-popup-title').innerText = ach.title;
+                        popup.classList.add('show');
+                        setTimeout(() => popup.classList.remove('show'), 4000);
+                    }
+                    this.renderAchievements();
+                }
+            }
+
+            renderAchievements() {
+                const container = document.getElementById('achievements-list');
+                container.innerHTML = '';
+
+                ACHIEVEMENTS_DEF.forEach(ach => {
+                    const unlocked = !!this.achievements[ach.id];
+                    const card = document.createElement('div');
+                    card.className = `achievement-card ${unlocked ? 'unlocked' : ''}`;
+                    card.innerHTML = `
+                        <div class="achievement-icon">${ach.icon}</div>
+                        <div>
+                            <div style="font-weight:bold;">${ach.title} ${unlocked ? '✅' : '🔒'}</div>
+                            <div style="font-size:0.9rem; color:#666;">${ach.desc}</div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+
+            resetProgress() {
+                if (confirm("Tem certeza que deseja reiniciar todo o seu progresso?")) {
+                    localStorage.removeItem('recicla_achievements');
+                    this.achievements = {};
+                    this.totalScore = 0;
+                    this.renderAchievements();
+                    alert("Progresso reiniciado com sucesso!");
+                }
+            }
+        }
+
+        const game = new Game();
+        game.init();
+    </script>
+</body>
+</html>
